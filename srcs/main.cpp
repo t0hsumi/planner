@@ -3,6 +3,7 @@
 
 #include "astar.hpp"
 #include "bfs.hpp"
+#include "bmrw.hpp"
 #include "lispiterator.hpp"
 #include "mrw.hpp"
 #include "nestedlist.hpp"
@@ -26,6 +27,8 @@ int main(int argc, char **argv) {
         "a,astar", "Using astar search, not bfs",
         cxxopts::value<bool>()->default_value("false"))(
         "m,mrw", "Using MonteCarloRandomWalk",
+        cxxopts::value<bool>()->default_value("false"))(
+        "b,bmrw", "Using Batch MonteCarloRandomWalk",
         cxxopts::value<bool>()->default_value("false"));
     options.parse_positional({"domfile", "probfile"});
 
@@ -34,6 +37,8 @@ int main(int argc, char **argv) {
       search = astar;
     } else if (result["mrw"].as<bool>()) {
       search = mrw;
+    } else if (result["bmrw"].as<bool>()) {
+      search = bmrw;
     }
   } catch (cxxopts::exceptions::exception &e) {
     std::cerr << options.help() << std::endl;

@@ -2,7 +2,7 @@
 #include <random>
 
 #include "astar.hpp"
-#include "mrw.hpp"
+#include "bmrw.hpp"
 #include "planner.hpp"
 #include "trie.hpp"
 
@@ -64,12 +64,33 @@ static SearchNode *MonteCarloRandomWalk(SearchNode *current_node,
     return current_node;
 }
 
-std::vector<std::string> mrw(const Task &task, bool use_trie) {
+void fillBatch(
+    std::priority_queue<std::tuple<size_t, size_t, SearchNode *>,
+                        std::vector<std::tuple<size_t, size_t, SearchNode *>>,
+                        TupleCmp> &openlist,
+    std::vector<SearchNode *> batch) {
+  size_t offset = 0;
+  for (int i = 0; i < BATCH_SIZE; ++i) {
+    if (openlist.empty()) {
+      if (offset == 0)
+        offset = i;
+      batch[i] = batch[i - offset];
+    } else {
+      auto top = openlist.top();
+      openlist.pop();
+      batch[i] = std::get<2>(top);
+    }
+  }
+}
+
+std::vector<std::string> bmrw(const Task &task, bool use_trie) {
   std::priority_queue<std::tuple<size_t, size_t, SearchNode *>,
                       std::vector<std::tuple<size_t, size_t, SearchNode *>>,
                       TupleCmp>
       openlist;
   std::vector<std::multiset<std::string>> closedlist;
+  std::vector<SearchNode *> batch(BATCH_SIZE);
+  std::vector<SearchNode *> walkers(BATCH_SIZE);
 
   hFFHeuristic heuristic(task);
   std::vector<SearchNode *> addrs;
@@ -85,36 +106,54 @@ std::vector<std::string> mrw(const Task &task, bool use_trie) {
   auto root = make_root_node(task.init);
   SearchNode *node = root;
   auto h_min = heuristic(root->state);
-  size_t counter = 0;
 
   addrs.push_back(root);
   openlist.push(make_open_entry(root, h_min, node_tiebreaker));
 
   std::cout << "Search start: " << task.name << std::endl;
 
-  while (!task.goal_reached(node->state)) {
-    std::vector<std::pair<Operator, std::multiset<std::string>>> successors;
-    if (use_trie)
-      successors = trie.get_successor_states(node->state);
-    else
-      successors = task.get_successor_states(node->state);
-    if (counter > MAX_STEPS || successors.size() == 0) {
-      node = root;
-      counter = 0;
-    }
-    node = MonteCarloRandomWalk(node, task, trie, use_trie, heuristic, addrs);
-    if (heuristic(node->state) < h_min) {
-      h_min = heuristic(node->state);
-      counter = 0;
-    } else
-      ++counter;
-  }
+  while (true) {
+    if (openlist.empty()) {
+      std::vector<std::pair<Operator, std::multiset<std::string>>> successors;
+      if (use_trie)
+        successors = trie.get_successor_states(root->state);
+      else
+        successors = task.get_successor_states(root->state);
+      for (auto p : successors) {
+        auto op = p.first;
+        auto succ_state = p.second;
 
-  std::cout << "Goal reached. Start extraction of solution." << std::endl;
-  std::cout << "Search end: " << task.name << std::endl;
-  auto ret = node->extract_solution();
-  for (auto addr : addrs) {
-    delete addr;
+        auto succ_node = make_child_node(root, op.name, succ_state);
+        addrs.push_back(succ_node);
+        auto h = heuristic(succ_node->state);
+        ++node_tiebreaker;
+        openlist.push(make_open_entry(succ_node, h, node_tiebreaker));
+      }
+    }
+    fillBatch(openlist, batch);
+    for (int i = 0; i < BATCH_SIZE; ++i) {
+      walkers[i] =
+          MonteCarloRandomWalk(node, task, trie, use_trie, heuristic, addrs);
+    }
+    for (int i = 0; i < BATCH_SIZE; ++i) {
+      if (task.goal_reached(walkers[i]->state)) {
+        std::cout << "Goal reached. Start extraction of solution." << std::endl;
+        std::cout << "Search end: " << task.name << std::endl;
+        auto ret = walkers[i]->extract_solution();
+        for (auto addr : addrs) {
+          delete addr;
+        }
+        return ret;
+      }
+      for (auto iter = closedlist.begin(); iter != closedlist.end(); ++iter) {
+        auto state = *iter;
+        if (walkers[i]->state == state)
+          continue;
+      }
+      closedlist.push_back(walkers[i]->state);
+      ++node_tiebreaker;
+      openlist.push(make_open_entry(walkers[i], heuristic(walkers[i]->state),
+                                    node_tiebreaker));
+    }
   }
-  return ret;
 }
