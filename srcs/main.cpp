@@ -4,6 +4,7 @@
 #include "astar.hpp"
 #include "bfs.hpp"
 #include "lispiterator.hpp"
+#include "mrw.hpp"
 #include "nestedlist.hpp"
 #include "parser.hpp"
 #include "planner.hpp"
@@ -23,12 +24,16 @@ int main(int argc, char **argv) {
         "t,trie", "Using Trie for successor generation",
         cxxopts::value<bool>(use_trie)->default_value("false"))(
         "a,astar", "Using astar search, not bfs",
+        cxxopts::value<bool>()->default_value("false"))(
+        "m,mrw", "Using MonteCarloRandomWalk",
         cxxopts::value<bool>()->default_value("false"));
     options.parse_positional({"domfile", "probfile"});
 
     auto result = options.parse(argc, argv);
     if (result["astar"].as<bool>()) {
       search = astar;
+    } else if (result["mrw"].as<bool>()) {
+      search = mrw;
     }
   } catch (cxxopts::exceptions::exception &e) {
     std::cerr << options.help() << std::endl;

@@ -106,6 +106,26 @@ public:
     return calc_goal_h();
   }
 
+  size_t operator()(const std::multiset<std::string> &state) {
+    std::priority_queue<std::tuple<size_t, size_t, RelaxedFact>,
+                        std::vector<std::tuple<size_t, size_t, RelaxedFact>>,
+                        CustomCompare>
+        pq;
+
+    init_distance(state);
+    pq.push(std::make_tuple(0, tie_breaker, start_state));
+    ++tie_breaker;
+
+    for (auto fact : state) {
+      pq.push(std::make_tuple(facts[fact].distance, tie_breaker, facts[fact]));
+      ++tie_breaker;
+    }
+
+    dijkstra(pq);
+
+    return calc_goal_h();
+  }
+
 private:
   std::unordered_map<std::string, RelaxedFact> facts;
   std::vector<RelaxedOperator *> operators;
