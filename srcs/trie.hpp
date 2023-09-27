@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "planner.hpp"
+#include "thread_bmrw.hpp"
 
 struct TrieNode {
   std::unordered_map<std::string, TrieNode *> children;
@@ -39,31 +40,31 @@ public:
   }
 
   std::vector<std::pair<Operator, std::multiset<std::string>>>
-  get_successor_states(const std::multiset<std::string> &state) const {
-    std::vector<std::pair<Operator, std::multiset<std::string>>> ret;
-    std::vector<TrieNode *> reachable_nodes;
-    std::vector<Operator> applicables;
+  get_successor_states(const std::multiset<std::string> &state, int id) const {
+    std::vector<std::vector<std::pair<Operator, std::multiset<std::string>>>>
+        ret(BATCH_SIZE);
+    std::vector<std::vector<TrieNode *>> reachable_nodes(BATCH_SIZE);
 
-    reachable_nodes.push_back(root);
+    reachable_nodes[id].push_back(root);
 
     for (auto fact : state) {
       std::vector<TrieNode *> add_nodes;
-      for (auto reachable_node : reachable_nodes) {
+      for (auto reachable_node : reachable_nodes[id]) {
         if (reachable_node->children.find(fact) !=
             reachable_node->children.end())
           add_nodes.push_back(reachable_node->children[fact]);
       }
-      reachable_nodes.insert(reachable_nodes.end(), add_nodes.begin(),
-                             add_nodes.end());
+      reachable_nodes[id].insert(reachable_nodes[id].end(), add_nodes.begin(),
+                                 add_nodes.end());
     }
 
-    for (auto reachable_node : reachable_nodes) {
+    for (auto reachable_node : reachable_nodes[id]) {
       for (auto op : reachable_node->applicable_actions) {
-        ret.push_back(std::make_pair(op, op.apply(state)));
+        ret[id].push_back(std::make_pair(op, op.apply(state)));
       }
     }
 
-    return ret;
+    return ret[id];
   }
 
 private:

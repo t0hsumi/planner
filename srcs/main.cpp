@@ -9,13 +9,14 @@
 #include "nestedlist.hpp"
 #include "parser.hpp"
 #include "planner.hpp"
+#include "thread_bmrw.hpp"
 #include "utils.hpp"
 
 int main(int argc, char **argv) {
   std::string domfile;
   std::string probfile;
   bool use_trie;
-  auto search = bfs;
+  auto search = thread_bmrw;
 
   cxxopts::Options options("cmd parser");
   try {
@@ -33,13 +34,13 @@ int main(int argc, char **argv) {
     options.parse_positional({"domfile", "probfile"});
 
     auto result = options.parse(argc, argv);
-    if (result["astar"].as<bool>()) {
-      search = astar;
-    } else if (result["mrw"].as<bool>()) {
-      search = mrw;
-    } else if (result["bmrw"].as<bool>()) {
-      search = bmrw;
-    }
+    /* if (result["astar"].as<bool>()) {       */
+    /*   search = astar;                       */
+    /* } else if (result["mrw"].as<bool>()) {  */
+    /*   search = mrw;                         */
+    /* } else if (result["bmrw"].as<bool>()) { */
+    /*   search = bmrw;                        */
+    /* }                                       */
   } catch (cxxopts::exceptions::exception &e) {
     std::cerr << options.help() << std::endl;
     std::cerr << e.what() << std::endl;
@@ -74,7 +75,7 @@ int main(int argc, char **argv) {
 
   // breadth first search
   auto start = std::chrono::system_clock::now();
-  auto solution = search(task, use_trie);
+  auto solution = search(task, true);
   auto end = std::chrono::system_clock::now();
   auto elapsed = static_cast<double>(
       std::chrono::duration_cast<std::chrono::milliseconds>(end - start)

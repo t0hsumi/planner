@@ -55,6 +55,8 @@ struct CustomCompare {
 
 class hFFHeuristic {
 public:
+  hFFHeuristic() {}
+
   hFFHeuristic(const Task &task) {
     start_state = RelaxedFact("start");
     init = task.init;
@@ -82,6 +84,30 @@ public:
   ~hFFHeuristic() {
     for (auto addr : operators) {
       delete addr;
+    }
+  }
+
+  void initialize(const Task &task) {
+    start_state = RelaxedFact("start");
+    init = task.init;
+    goal = task.goal;
+    tie_breaker = 0;
+
+    for (auto fact : task.facts) {
+      this->facts.insert({fact, RelaxedFact(fact)});
+    }
+
+    for (auto op : task.operators) {
+      auto ro = new RelaxedOperator(op.name, op.preconditions, op.add_effects);
+      operators.push_back(ro);
+
+      for (auto var : op.preconditions) {
+        facts[var].precondition_of.push_back(ro);
+      }
+
+      if (op.preconditions.empty()) {
+        start_state.precondition_of.push_back(ro);
+      }
     }
   }
 

@@ -11,6 +11,8 @@
 
 #include "parser.hpp"
 
+#define BATCH_SIZE 8
+
 class Operator {
 public:
   Operator() {}
@@ -72,15 +74,16 @@ public:
   }
 
   std::vector<std::pair<Operator, std::multiset<std::string>>>
-  get_successor_states(std::multiset<std::string> state) const {
-    std::vector<std::pair<Operator, std::multiset<std::string>>> ret;
+  get_successor_states(std::multiset<std::string> state, int id) const {
+    std::vector<std::vector<std::pair<Operator, std::multiset<std::string>>>>
+        ret(BATCH_SIZE);
 
     for (auto op : operators) {
       if (op.applicable(state)) {
-        ret.push_back(std::make_pair(op, op.apply(state)));
+        ret[id].push_back(std::make_pair(op, op.apply(state)));
       }
     }
-    return ret;
+    return ret[id];
   }
 };
 

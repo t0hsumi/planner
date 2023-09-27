@@ -6,7 +6,7 @@ DPS_DIR = $(OBJ_DIR)
 INC_DIR = include/
 
 CC = g++
-BASE_FLAGS = -Wall -MMD -MP -I$(INC_DIR) -I/usr/local/include  -g
+BASE_FLAGS = -Wall -MMD -MP -I$(INC_DIR) -I/usr/local/include  -O3 -pthread
 CPPFLAGS = $(BASE_FLAGS)
 
 SRCS = $(shell find $(SRC_DIR) -name '*.cpp' | xargs basename -a)
