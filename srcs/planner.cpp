@@ -1,4 +1,6 @@
 #include "planner.hpp"
+#include <unordered_map>
+#include <vector>
 
 static std::unordered_map<std::string, std::vector<std::string>>
 get_typemap(const std::unordered_map<std::string, Type> &types,
@@ -350,6 +352,78 @@ relevance_analysis(std::vector<Operator> &operators,
   return operators;
 }
 
+static std::unordered_map<std::string, size_t>
+get_factnum_map(const std::multiset<std::string> &facts) {
+  std::unordered_map<std::string, size_t> ret;
+  size_t index = 0;
+
+  for (auto fact : facts) {
+    ret[fact] = index;
+    ++index;
+  }
+
+  return ret;
+}
+
+static std::vector<bool>
+state2vector(const std::multiset<std::string> &init,
+             const std::unordered_map<std::string, size_t> &fact2num) {
+  std::vector<bool> ret(fact2num.size(), false);
+
+  for (auto f : init) {
+    ret[fact2num.at(f)] = true;
+  }
+
+  return ret;
+}
+
+// predicate to boolean vector
+static std::multiset<size_t>
+pred2vector(std::multiset<std::string> &pred,
+            const std::unordered_map<std::string, size_t> &fact2num) {
+  std::multiset<size_t> ret;
+
+  for (auto f : pred) {
+    ret.insert(fact2num.at(f));
+  }
+  return ret;
+}
+
+static VecOperator
+get_vecOperator(const Operator &op,
+                const std::unordered_map<std::string, size_t> &fact2num) {
+  VecOperator ret;
+  std::vector<size_t> precond, add, del;
+
+  for (auto f : op.preconditions) {
+    precond.push_back(fact2num.at(f));
+  }
+  for (auto f : op.add_effects)
+    add.push_back(fact2num.at(f));
+  for (auto f : op.del_effects)
+    del.push_back(fact2num.at(f));
+
+  ret.name = op.name;
+  ret.preconditions = precond;
+  ret.add_eff = add;
+  ret.del_eff = del;
+
+  return ret;
+}
+
+static std::vector<VecOperator>
+get_vecOperators(const std::vector<Operator> &operators,
+                 const std::unordered_map<std::string, size_t> &fact2num) {
+  std::vector<VecOperator> ret;
+
+  for (auto op : operators) {
+    auto tmp = get_vecOperator(op, fact2num);
+    ret.push_back(tmp);
+  }
+
+  return ret;
+}
+
 Task generate_task(const DomainDef &dom, const ProblemDef &prob) {
   assert(dom.name == prob.domname);
 
@@ -362,10 +436,15 @@ Task generate_task(const DomainDef &dom, const ProblemDef &prob) {
   init = remove_statics_from_initial_state(facts, init);
   operators = relevance_analysis(operators, goal);
 
-  return Task(prob.probname, facts, init, goal, operators);
+  auto fact2num = get_factnum_map(facts);
+  auto init_vec = state2vector(init, fact2num);
+  auto goal_vec = pred2vector(goal, fact2num);
+  auto vec_ops = get_vecOperators(operators, fact2num);
+
+  return Task(prob.probname, init_vec, goal_vec, vec_ops);
 }
 
-SearchNode *make_root_node(std::multiset<std::string> initial_state) {
+SearchNode *make_root_node(std::vector<bool> initial_state) {
   auto ret = new SearchNode();
 
   ret->state = initial_state;
@@ -376,7 +455,7 @@ SearchNode *make_root_node(std::multiset<std::string> initial_state) {
 }
 
 SearchNode *make_child_node(SearchNode *parent_node, const std::string &action,
-                            const std::multiset<std::string> &state) {
+                            const std::vector<bool> &state) {
   auto ret = new SearchNode();
 
   ret->state = state;

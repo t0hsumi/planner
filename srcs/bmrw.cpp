@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <random>
+#include <set>
 
 #include "astar.hpp"
 #include "bmrw.hpp"
@@ -37,7 +38,7 @@ static SearchNode *MonteCarloRandomWalk(SearchNode *current_node,
   for (int i = 0; i < NUM_WALK; ++i) {
     auto node = current_node;
     for (size_t j = 0; j < LENGTH_WALK; j++) {
-      std::vector<std::pair<Operator, std::multiset<std::string>>> successors;
+      std::vector<std::pair<VecOperator, std::vector<bool>>> successors;
       if (use_trie)
         successors = trie.get_successor_states(node->state);
       else
@@ -88,7 +89,7 @@ std::vector<std::string> bmrw(const Task &task, bool use_trie) {
                       std::vector<std::tuple<size_t, size_t, SearchNode *>>,
                       TupleCmp>
       openlist;
-  std::vector<std::multiset<std::string>> closedlist;
+  std::unordered_set<std::vector<bool>> closedlist;
   std::vector<SearchNode *> batch(BATCH_SIZE);
   std::vector<SearchNode *> walkers(BATCH_SIZE);
 
@@ -114,7 +115,7 @@ std::vector<std::string> bmrw(const Task &task, bool use_trie) {
 
   while (true) {
     if (openlist.empty()) {
-      std::vector<std::pair<Operator, std::multiset<std::string>>> successors;
+      std::vector<std::pair<VecOperator, std::vector<bool>>> successors;
       if (use_trie)
         successors = trie.get_successor_states(root->state);
       else
@@ -145,12 +146,9 @@ std::vector<std::string> bmrw(const Task &task, bool use_trie) {
         }
         return ret;
       }
-      for (auto iter = closedlist.begin(); iter != closedlist.end(); ++iter) {
-        auto state = *iter;
-        if (walkers[i]->state == state)
-          continue;
-      }
-      closedlist.push_back(walkers[i]->state);
+      if (closedlist.find(walkers[i]->state) == closedlist.end())
+        continue;
+      closedlist.insert(walkers[i]->state);
       ++node_tiebreaker;
       openlist.push(make_open_entry(walkers[i], heuristic(walkers[i]->state),
                                     node_tiebreaker));

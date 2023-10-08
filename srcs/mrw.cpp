@@ -1,5 +1,7 @@
 #include <cstdint>
 #include <random>
+#include <unordered_set>
+#include <vector>
 
 #include "astar.hpp"
 #include "mrw.hpp"
@@ -37,7 +39,7 @@ static SearchNode *MonteCarloRandomWalk(SearchNode *current_node,
   for (int i = 0; i < NUM_WALK; ++i) {
     auto node = current_node;
     for (size_t j = 0; j < LENGTH_WALK; j++) {
-      std::vector<std::pair<Operator, std::multiset<std::string>>> successors;
+      std::vector<std::pair<VecOperator, std::vector<bool>>> successors;
       if (use_trie)
         successors = trie.get_successor_states(node->state);
       else
@@ -69,7 +71,6 @@ std::vector<std::string> mrw(const Task &task, bool use_trie) {
                       std::vector<std::tuple<size_t, size_t, SearchNode *>>,
                       TupleCmp>
       openlist;
-  std::vector<std::multiset<std::string>> closedlist;
 
   hFFHeuristic heuristic(task);
   std::vector<SearchNode *> addrs;
@@ -93,7 +94,7 @@ std::vector<std::string> mrw(const Task &task, bool use_trie) {
   std::cout << "Search start: " << task.name << std::endl;
 
   while (!task.goal_reached(node->state)) {
-    std::vector<std::pair<Operator, std::multiset<std::string>>> successors;
+    std::vector<std::pair<VecOperator, std::vector<bool>>> successors;
     if (use_trie)
       successors = trie.get_successor_states(node->state);
     else
