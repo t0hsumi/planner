@@ -48,6 +48,7 @@ int main(int argc, char **argv) {
   }
 
   std::cout << "Parse Start" << std::endl;
+  std::cout << domfile << std::endl;
   // parse domain file
   auto DomTokens = generate_token(domfile);
   auto Domlst = generate_nestedlist(DomTokens);
@@ -70,7 +71,7 @@ int main(int argc, char **argv) {
   auto task = generate_task(dom, prob);
 
   std::cout << "Task generation end" << std::endl;
-  std::cout << task.facts.size() << " Facts created" << std::endl;
+  std::cout << task.init.size() << " Facts created" << std::endl;
   std::cout << task.operators.size() << " Operators created" << std::endl;
 
   // breadth first search

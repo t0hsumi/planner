@@ -1,9 +1,11 @@
+#include <unordered_set>
+
 #include "bfs.hpp"
 #include "trie.hpp"
 
 std::vector<std::string> bfs(const Task &task, bool use_trie) {
   std::queue<SearchNode *> queue;
-  std::vector<std::multiset<std::string>> closed;
+  std::unordered_set<std::vector<bool>> closed;
   std::vector<SearchNode *> addrs;
   Trie trie;
 
@@ -17,7 +19,7 @@ std::vector<std::string> bfs(const Task &task, bool use_trie) {
   queue.push(make_root_node(task.init));
   addrs.push_back(queue.front());
 
-  closed.push_back(task.init);
+  closed.insert(task.init);
   int niteration = 0;
   while (!queue.empty()) {
     ++niteration;
@@ -34,7 +36,7 @@ std::vector<std::string> bfs(const Task &task, bool use_trie) {
       return ret;
     }
 
-    std::vector<std::pair<Operator, std::multiset<std::string>>> successors;
+    std::vector<std::pair<VecOperator, std::vector<bool>>> successors;
     if (use_trie)
       successors = trie.get_successor_states(node->state);
     else
@@ -47,7 +49,7 @@ std::vector<std::string> bfs(const Task &task, bool use_trie) {
         auto child = make_child_node(node, op.name, successor_state);
         queue.push(child);
         addrs.push_back(child);
-        closed.push_back(successor_state);
+        closed.insert(successor_state);
       }
     }
   }

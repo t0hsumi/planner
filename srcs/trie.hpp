@@ -10,10 +10,10 @@
 #include "thread_bmrw.hpp"
 
 struct TrieNode {
-  std::unordered_map<std::string, TrieNode *> children;
-  std::vector<Operator> applicable_actions;
+  std::unordered_map<size_t, TrieNode *> children;
+  std::vector<VecOperator> applicable_actions;
 
-  TrieNode() : children(std::unordered_map<std::string, TrieNode *>()) {}
+  TrieNode() : children(std::unordered_map<size_t, TrieNode *>()) {}
   ~TrieNode() {
     for (auto &kv : children)
       delete kv.second;
@@ -39,20 +39,21 @@ public:
     }
   }
 
-  std::vector<std::pair<Operator, std::multiset<std::string>>>
-  get_successor_states(const std::multiset<std::string> &state, int id) const {
-    std::vector<std::vector<std::pair<Operator, std::multiset<std::string>>>>
-        ret(BATCH_SIZE);
-    std::vector<std::vector<TrieNode *>> reachable_nodes(BATCH_SIZE);
+  std::vector<std::pair<VecOperator, std::vector<bool>>>
+  get_successor_states(const std::vector<bool> &state) const {
+    std::vector<std::pair<VecOperator, std::vector<bool>>> ret;
+    std::vector<TrieNode *> reachable_nodes;
+    std::vector<VecOperator> applicables;
 
     reachable_nodes[id].push_back(root);
 
-    for (auto fact : state) {
+    for (size_t i = 0; i < state.size(); ++i) {
+      if (!state[i])
+        continue;
       std::vector<TrieNode *> add_nodes;
-      for (auto reachable_node : reachable_nodes[id]) {
-        if (reachable_node->children.find(fact) !=
-            reachable_node->children.end())
-          add_nodes.push_back(reachable_node->children[fact]);
+      for (auto reachable_node : reachable_nodes) {
+        if (reachable_node->children.find(i) != reachable_node->children.end())
+          add_nodes.push_back(reachable_node->children[i]);
       }
       reachable_nodes[id].insert(reachable_nodes[id].end(), add_nodes.begin(),
                                  add_nodes.end());

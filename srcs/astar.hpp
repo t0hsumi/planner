@@ -10,8 +10,8 @@
 
 class RelaxedOperator {
 public:
-  RelaxedOperator(std::string name, std::multiset<std::string> precond,
-                  std::multiset<std::string> add_effects)
+  RelaxedOperator(std::string name, std::vector<size_t> precond,
+                  std::vector<size_t> add_effects)
       : name(name), precond(precond), add_effects(add_effects),
         counter(precond.size()) {}
 
@@ -25,8 +25,8 @@ public:
   bool operator==(const RelaxedOperator &r) const { return name == r.name; }
 
   std::string name;
-  std::multiset<std::string> precond;
-  std::multiset<std::string> add_effects;
+  std::vector<size_t> precond;
+  std::vector<size_t> add_effects;
   const size_t cost = 1;
   int counter;
 };
@@ -34,10 +34,9 @@ public:
 class RelaxedFact {
 public:
   RelaxedFact() {}
-  RelaxedFact(std::string name)
-      : name(name), expanded(false), cheapest_achiver(nullptr) {}
+  RelaxedFact(size_t id) : id(id), expanded(false), cheapest_achiver(nullptr) {}
 
-  std::string name;
+  size_t id;
   std::vector<RelaxedOperator *> precondition_of;
   bool expanded = false;
   RelaxedOperator *cheapest_achiver;
@@ -58,17 +57,18 @@ public:
   hFFHeuristic() {}
 
   hFFHeuristic(const Task &task) {
-    start_state = RelaxedFact("start");
+    start_state = RelaxedFact(SIZE_MAX);
     init = task.init;
     goal = task.goal;
     tie_breaker = 0;
 
-    for (auto fact : task.facts) {
-      this->facts.insert({fact, RelaxedFact(fact)});
+    this->facts.resize(task.init.size());
+    for (size_t i = 0; i < facts.size(); ++i) {
+      this->facts[i].id = i;
     }
 
     for (auto op : task.operators) {
-      auto ro = new RelaxedOperator(op.name, op.preconditions, op.add_effects);
+      auto ro = new RelaxedOperator(op.name, op.preconditions, op.add_eff);
       operators.push_back(ro);
 
       for (auto var : op.preconditions) {
@@ -122,8 +122,10 @@ public:
     pq.push(std::make_tuple(0, tie_breaker, start_state));
     ++tie_breaker;
 
-    for (auto fact : state) {
-      pq.push(std::make_tuple(facts[fact].distance, tie_breaker, facts[fact]));
+    for (size_t i = 0; i < state.size(); ++i) {
+      if (!state[i])
+        continue;
+      pq.push(std::make_tuple(facts[i].distance, tie_breaker, facts[i]));
       ++tie_breaker;
     }
 
@@ -132,7 +134,7 @@ public:
     return calc_goal_h();
   }
 
-  size_t operator()(const std::multiset<std::string> &state) {
+  size_t operator()(const std::vector<bool> &state) {
     std::priority_queue<std::tuple<size_t, size_t, RelaxedFact>,
                         std::vector<std::tuple<size_t, size_t, RelaxedFact>>,
                         CustomCompare>
@@ -142,8 +144,10 @@ public:
     pq.push(std::make_tuple(0, tie_breaker, start_state));
     ++tie_breaker;
 
-    for (auto fact : state) {
-      pq.push(std::make_tuple(facts[fact].distance, tie_breaker, facts[fact]));
+    for (size_t i = 0; i < state.size(); ++i) {
+      if (!state[i])
+        continue;
+      pq.push(std::make_tuple(facts[i].distance, tie_breaker, facts[i]));
       ++tie_breaker;
     }
 
@@ -153,27 +157,25 @@ public:
   }
 
 private:
-  std::unordered_map<std::string, RelaxedFact> facts;
+  std::vector<RelaxedFact> facts;
   std::vector<RelaxedOperator *> operators;
-  std::multiset<std::string> init;
-  std::multiset<std::string> goal;
+  std::vector<bool> init;
+  std::multiset<size_t> goal;
   size_t tie_breaker;
   RelaxedFact start_state;
 
-  void reset_fact(const std::multiset<std::string> &state, RelaxedFact &f) {
+  void reset_fact(const std::vector<bool> &state, RelaxedFact &f) {
     f.expanded = false;
     f.cheapest_achiver = nullptr;
-    if (state.find(f.name) != state.end()) {
+    if (f.id == SIZE_MAX || state[f.id])
       f.distance = 0;
-    } else {
+    else
       f.distance = 1e9;
-    }
   }
-  void init_distance(const std::multiset<std::string> &state) {
+  void init_distance(const std::vector<bool> &state) {
     reset_fact(state, start_state);
-    for (auto iter = facts.begin(); iter != facts.end(); ++iter) {
-      RelaxedFact &fact = (*iter).second;
-      reset_fact(state, fact);
+    for (size_t i = 0; i < facts.size(); ++i) {
+      reset_fact(state, facts[i]);
     }
     for (auto op : operators) {
       op->counter = op->precond.size();
@@ -192,23 +194,22 @@ private:
       std::priority_queue<std::tuple<size_t, size_t, RelaxedFact>,
                           std::vector<std::tuple<size_t, size_t, RelaxedFact>>,
                           CustomCompare> &pq) {
-    std::multiset<std::string> achieved_goals;
+    std::multiset<size_t> achieved_goals;
 
     while (goal != achieved_goals && !pq.empty()) {
       auto tuple = pq.top();
       pq.pop();
       RelaxedFact &fact = std::get<2>(tuple);
 
-      if (goal.find(fact.name) != goal.end()) {
-        achieved_goals.insert(fact.name);
-      }
+      if (goal.find(fact.id) != goal.end())
+        achieved_goals.insert(fact.id);
 
       if (!fact.expanded) {
         for (auto op : fact.precondition_of) {
           op->counter -= 1;
           if (op->counter <= 0) {
-            for (auto n : op->add_effects) {
-              RelaxedFact &neighbor = facts[n];
+            for (auto id : op->add_effects) {
+              RelaxedFact &neighbor = facts[id];
               auto tmp_dist = get_cost(*op);
               if (tmp_dist < neighbor.distance) {
                 neighbor.distance = tmp_dist;
@@ -234,7 +235,7 @@ private:
 
     if (hAdd_value < 1e9) {
       std::queue<RelaxedFact> q;
-      std::unordered_set<std::string> closed_list;
+      std::unordered_set<size_t> closed_list;
 
       for (auto g : goal) {
         q.push(facts[g]);
