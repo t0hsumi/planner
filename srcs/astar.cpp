@@ -1,4 +1,7 @@
+#include <unordered_map>
+
 #include "astar.hpp"
+#include "planner.hpp"
 #include "trie.hpp"
 
 static std::tuple<size_t, size_t, size_t, SearchNode *>
@@ -24,7 +27,7 @@ std::vector<std::string> astar(const Task &task, bool use_trie) {
       std::tuple<size_t, size_t, size_t, SearchNode *>,
       std::vector<std::tuple<size_t, size_t, size_t, SearchNode *>>, TupleCmp>
       open;
-  std::vector<std::pair<std::multiset<std::string>, size_t>> state_cost;
+  std::unordered_map<std::vector<bool>, size_t> state_cost;
   std::vector<SearchNode *> addrs;
   hFFHeuristic heuristic(task);
   Trie trie;
@@ -35,7 +38,7 @@ std::vector<std::string> astar(const Task &task, bool use_trie) {
     std::cout << "trie init end" << std::endl;
   }
 
-  state_cost.push_back(make_pair(task.init, 0));
+  state_cost[task.init] = 0;
   size_t node_tiebreaker = 0;
 
   auto root = make_root_node(task.init);
@@ -50,22 +53,18 @@ std::vector<std::string> astar(const Task &task, bool use_trie) {
   int niteration = 0;
 
   while (!open.empty()) {
-    auto n = open.top();
+    auto next = open.top();
     open.pop();
-    SearchNode *pop_node = std::get<3>(n);
+    SearchNode *pop_node = std::get<3>(next);
     auto pop_state = pop_node->state;
 
     bool is_lowest_cost = false;
-    for (auto iter = state_cost.begin(); iter != state_cost.end(); ++iter) {
-      auto state = (*iter).first;
-      if (pop_state == state && (*iter).second == pop_node->g) {
-        is_lowest_cost = true;
-        break;
-      }
-    }
+    if (state_cost.find(pop_state) != state_cost.end() &&
+        state_cost[pop_state] == pop_node->g)
+      is_lowest_cost = true;
+
     if (is_lowest_cost) {
       ++niteration;
-      /* std::cout << niteration << std::endl; */
       if (task.goal_reached(pop_state)) {
         std::cout << "Goal reached. Start extraction of solution." << std::endl;
         std::cout << "Search end: " << task.name << std::endl;
@@ -77,7 +76,7 @@ std::vector<std::string> astar(const Task &task, bool use_trie) {
         return ret;
       }
 
-      std::vector<std::pair<Operator, std::multiset<std::string>>> successors;
+      std::vector<std::pair<VecOperator, std::vector<bool>>> successors;
       if (use_trie)
         successors = trie.get_successor_states(pop_state);
       else
@@ -92,17 +91,15 @@ std::vector<std::string> astar(const Task &task, bool use_trie) {
         if (h == 1e9)
           continue;
         size_t old_succ_g = 1e9;
-        // todo rbegin rend
-        for (auto iter = state_cost.begin(); iter != state_cost.end(); ++iter) {
-          auto state = (*iter).first;
-          if (state == succ_state) {
-            old_succ_g = (*iter).second;
-          }
+
+        if (state_cost.find(succ_state) != state_cost.end()) {
+          old_succ_g = state_cost[succ_state];
         }
+
         if (succ_node->g < old_succ_g) {
           ++node_tiebreaker;
           open.push(make_open_entry(succ_node, h, node_tiebreaker));
-          state_cost.push_back(make_pair(succ_state, succ_node->g));
+          state_cost[succ_state] = succ_node->g;
         }
       }
     }

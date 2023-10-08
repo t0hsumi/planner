@@ -11,6 +11,7 @@
 
 #include "parser.hpp"
 
+// clause version of operator
 class Operator {
 public:
   Operator() {}
@@ -48,38 +49,65 @@ public:
   }
 };
 
-class Task {
+// vector version of operator
+class VecOperator {
 public:
-  Task(std::string name, std::multiset<std::string> facts,
-       std::multiset<std::string> init, std::multiset<std::string> goal,
-       std::vector<Operator> operators)
-      : name(name), facts(facts), init(init), goal(goal), operators(operators) {
-  }
+  VecOperator() {}
+  VecOperator(std::string name, std::vector<size_t> precond,
+              std::vector<size_t> add, std::vector<size_t> del)
+      : name(name), preconditions(precond), add_eff(add), del_eff(del) {}
 
   std::string name;
-  std::multiset<std::string> facts;
-  std::multiset<std::string> init;
-  std::multiset<std::string> goal;
-  std::vector<Operator> operators;
+  std::vector<size_t> preconditions;
+  std::vector<size_t> add_eff;
+  std::vector<size_t> del_eff;
 
-  bool goal_reached(const std::multiset<std::string> &state) const {
-    /* return goal <= state; */
-    for (auto f : goal) {
-      if (state.find(f) == state.end())
+  bool applicable(const std::vector<bool> &state) {
+    for (auto elem : preconditions) {
+      if (!state[elem])
         return false;
     }
     return true;
   }
 
-  std::vector<std::pair<Operator, std::multiset<std::string>>>
-  get_successor_states(std::multiset<std::string> state) const {
-    std::vector<std::pair<Operator, std::multiset<std::string>>> ret;
+  std::vector<bool> apply(const std::vector<bool> &state) {
+    auto ret = state;
+    for (auto idx : del_eff)
+      ret[idx] = false;
+    for (auto idx : add_eff)
+      ret[idx] = true;
+    return ret;
+  }
+};
+
+class Task {
+public:
+  Task(std::string name, std::vector<bool> init, std::multiset<size_t> goal,
+       std::vector<VecOperator> operators)
+      : name(name), init(init), goal(goal), operators(operators) {}
+
+  std::string name;
+  std::vector<bool> init;
+  std::multiset<size_t> goal;
+  std::vector<VecOperator> operators;
+
+  bool goal_reached(const std::vector<bool> &state) const {
+    for (auto f : goal) {
+      if (!state[f])
+        return false;
+    }
+    return true;
+  }
+
+  std::vector<std::pair<VecOperator, std::vector<bool>>>
+  get_successor_states(std::vector<bool> state) const {
+    std::vector<std::pair<VecOperator, std::vector<bool>>> ret;
 
     for (auto op : operators) {
-      if (op.applicable(state)) {
+      if (op.applicable(state))
         ret.push_back(std::make_pair(op, op.apply(state)));
-      }
     }
+
     return ret;
   }
 };
@@ -89,11 +117,11 @@ Task generate_task(const DomainDef &dom, const ProblemDef &prob);
 class SearchNode {
 public:
   SearchNode() {}
-  SearchNode(std::multiset<std::string> state, SearchNode *parent,
-             std::string action, size_t cost)
+  SearchNode(std::vector<bool> state, SearchNode *parent, std::string action,
+             size_t cost)
       : state(state), parent(parent), action(action), g(cost) {}
 
-  std::multiset<std::string> state;
+  std::vector<bool> state;
   SearchNode *parent;
   std::string action;
   size_t g;
@@ -112,8 +140,8 @@ public:
   }
 };
 
-SearchNode *make_root_node(std::multiset<std::string> initial_state);
+SearchNode *make_root_node(std::vector<bool> initial_state);
 SearchNode *make_child_node(SearchNode *parent_node, const std::string &action,
-                            const std::multiset<std::string> &state);
+                            const std::vector<bool> &state);
 
 #endif
