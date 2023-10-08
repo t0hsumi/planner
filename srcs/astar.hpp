@@ -88,17 +88,18 @@ public:
   }
 
   void initialize(const Task &task) {
-    start_state = RelaxedFact("start");
+    start_state = RelaxedFact(SIZE_MAX);
     init = task.init;
     goal = task.goal;
     tie_breaker = 0;
 
-    for (auto fact : task.facts) {
-      this->facts.insert({fact, RelaxedFact(fact)});
+    this->facts.resize(task.init.size());
+    for (size_t i = 0; i < facts.size(); ++i) {
+      this->facts[i].id = i;
     }
 
     for (auto op : task.operators) {
-      auto ro = new RelaxedOperator(op.name, op.preconditions, op.add_effects);
+      auto ro = new RelaxedOperator(op.name, op.preconditions, op.add_eff);
       operators.push_back(ro);
 
       for (auto var : op.preconditions) {

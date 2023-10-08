@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "bmrw.hpp"
 #include "planner.hpp"
 #include "thread_bmrw.hpp"
 
@@ -40,9 +41,10 @@ public:
   }
 
   std::vector<std::pair<VecOperator, std::vector<bool>>>
-  get_successor_states(const std::vector<bool> &state) const {
-    std::vector<std::pair<VecOperator, std::vector<bool>>> ret;
-    std::vector<TrieNode *> reachable_nodes;
+  get_successor_states(const std::vector<bool> &state, size_t id) const {
+    std::vector<std::vector<std::pair<VecOperator, std::vector<bool>>>> ret(
+        BATCH_SIZE);
+    std::vector<std::vector<TrieNode *>> reachable_nodes(BATCH_SIZE);
     std::vector<VecOperator> applicables;
 
     reachable_nodes[id].push_back(root);
@@ -51,9 +53,12 @@ public:
       if (!state[i])
         continue;
       std::vector<TrieNode *> add_nodes;
-      for (auto reachable_node : reachable_nodes) {
-        if (reachable_node->children.find(i) != reachable_node->children.end())
-          add_nodes.push_back(reachable_node->children[i]);
+      for (size_t j = 0; j < BATCH_SIZE; ++j) {
+        for (auto reachable_node : reachable_nodes[j]) {
+          if (reachable_node->children.find(i) !=
+              reachable_node->children.end())
+            add_nodes.push_back(reachable_node->children[i]);
+        }
       }
       reachable_nodes[id].insert(reachable_nodes[id].end(), add_nodes.begin(),
                                  add_nodes.end());

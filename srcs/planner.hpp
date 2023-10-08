@@ -102,15 +102,16 @@ public:
   }
 
   std::vector<std::pair<VecOperator, std::vector<bool>>>
-  get_successor_states(std::vector<bool> state) const {
-    std::vector<std::pair<VecOperator, std::vector<bool>>> ret;
+  get_successor_states(std::vector<bool> state, size_t id) const {
+    std::vector<std::vector<std::pair<VecOperator, std::vector<bool>>>> ret(
+        BATCH_SIZE);
 
     for (auto op : operators) {
       if (op.applicable(state))
-        ret.push_back(std::make_pair(op, op.apply(state)));
+        ret[id].push_back(std::make_pair(op, op.apply(state)));
     }
 
-    return ret;
+    return ret[id];
   }
 };
 

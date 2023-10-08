@@ -1,12 +1,12 @@
 #include <cstdint>
 #include <random>
+#include <unordered_set>
 
 #include "astar.hpp"
 #include "bmrw.hpp"
 #include "planner.hpp"
 #include "thread_bmrw.hpp"
 #include "trie.hpp"
-
 static std::tuple<size_t, size_t, SearchNode *>
 make_open_entry(SearchNode *node, size_t h, size_t node_tiebreaker) {
   return std::make_tuple(h, node_tiebreaker, node);
@@ -41,7 +41,7 @@ static void MonteCarloRandomWalk(std::vector<SearchNode *> batch,
   for (int i = 0; i < NUM_WALK; ++i) {
     auto node = current_node;
     for (size_t j = 0; j < LENGTH_WALK; j++) {
-      std::vector<std::pair<Operator, std::multiset<std::string>>> successors;
+      std::vector<std::pair<VecOperator, std::vector<bool>>> successors;
       if (use_trie) {
         successors = trie.get_successor_states(node->state, thread_id);
       } else
@@ -97,7 +97,7 @@ std::vector<std::string> thread_bmrw(const Task &task, bool use_trie) {
                       std::vector<std::tuple<size_t, size_t, SearchNode *>>,
                       TupleCmp>
       openlist;
-  std::vector<std::multiset<std::string>> closedlist;
+  std::unordered_set<std::vector<bool>> closedlist;
   std::vector<SearchNode *> batch(BATCH_SIZE);
   std::vector<SearchNode *> walkers(BATCH_SIZE);
 
@@ -116,7 +116,6 @@ std::vector<std::string> thread_bmrw(const Task &task, bool use_trie) {
   }
 
   auto root = make_root_node(task.init);
-  SearchNode *node = root;
   auto h_min = heuristics[0](root->state);
 
   /* addrs.push_back(root); */
@@ -126,7 +125,7 @@ std::vector<std::string> thread_bmrw(const Task &task, bool use_trie) {
 
   while (true) {
     if (openlist.empty()) {
-      std::vector<std::pair<Operator, std::multiset<std::string>>> successors;
+      std::vector<std::pair<VecOperator, std::vector<bool>>> successors;
       if (use_trie)
         successors = trie.get_successor_states(root->state, 0);
       else
@@ -168,12 +167,9 @@ std::vector<std::string> thread_bmrw(const Task &task, bool use_trie) {
         auto ret = walkers[i]->extract_solution();
         return ret;
       }
-      for (auto iter = closedlist.begin(); iter != closedlist.end(); ++iter) {
-        auto state = *iter;
-        if (walkers[i]->state == state)
-          continue;
-      }
-      closedlist.push_back(walkers[i]->state);
+      if (closedlist.find(walkers[i]->state) != closedlist.end())
+        continue;
+      closedlist.insert(walkers[i]->state);
       ++node_tiebreaker;
       openlist.push(make_open_entry(
           walkers[i], heuristics[i](walkers[i]->state), node_tiebreaker));
