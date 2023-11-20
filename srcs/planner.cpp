@@ -108,8 +108,9 @@ static void remove_invalid_objects(
       }
     }
   }
-  std::cout << "Static analysis removed " << nremoved << " possible objects."
-            << std::endl;
+  /* std::cout << "Static analysis removed " << nremoved << " possible objects."
+   */
+  /*           << std::endl; */
 }
 
 static std::vector<std::unordered_map<std::string, std::string>>
@@ -224,7 +225,8 @@ static std::vector<Operator> get_action_instance(
   std::vector<Operator> ret;
 
   if (action.parameters.empty()) {
-    std::cout << "Static analysis removed 0 possible objects." << std::endl;
+    /* std::cout << "Static analysis removed 0 possible objects." << std::endl;
+     */
     auto op = create_operator(
         action, std::unordered_map<std::string, std::string>(), statics, init);
     if (op.name != "")

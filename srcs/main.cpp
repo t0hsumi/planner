@@ -47,8 +47,8 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  std::cout << "Parse Start" << std::endl;
-  std::cout << domfile << std::endl;
+  auto start = std::chrono::system_clock::now();
+
   // parse domain file
   auto DomTokens = generate_token(domfile);
   auto Domlst = generate_nestedlist(DomTokens);
@@ -61,29 +61,33 @@ int main(int argc, char **argv) {
   LispIterator ProbIter(Problst);
   auto prob = parse_problem(ProbIter);
 
-  std::cout << "Parse end" << std::endl;
-  std::cout << dom.preconditions.size() << " Predicates parsed" << std::endl;
-  std::cout << dom.actions.size() << " Actions parsed" << std::endl;
-  std::cout << prob.objs.size() << " Objects parsed" << std::endl;
+  auto parse_end = std::chrono::system_clock::now();
 
-  std::cout << "Task generation start" << std::endl;
+  /* std::cout << dom.preconditions.size() << " Predicates parsed" << std::endl;
+   */
+  /* std::cout << dom.actions.size() << " Actions parsed" << std::endl; */
+  /* std::cout << prob.objs.size() << " Objects parsed" << std::endl; */
+
   // combine domain def and prob def
   auto task = generate_task(dom, prob);
 
-  std::cout << "Task generation end" << std::endl;
-  std::cout << task.init.size() << " Facts created" << std::endl;
-  std::cout << task.operators.size() << " Operators created" << std::endl;
+  /* std::cout << task.init.size() << " Facts created" << std::endl;          */
+  /* std::cout << task.operators.size() << " Operators created" << std::endl; */
 
-  // breadth first search
-  auto start = std::chrono::system_clock::now();
   auto solution = search(task, true);
+
   auto end = std::chrono::system_clock::now();
+
   auto elapsed = static_cast<double>(
       std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
           .count());
-  write_solution(solution, elapsed);
+  if (solution.empty()) {
+    std::cout << "No solution found." << std::endl;
+    return 1;
+  } else
+    write_solution(solution, elapsed);
 
   // check plan
-  std::string cmd = "validate " + domfile + " " + probfile + " solution";
-  system(cmd.c_str());
+  /* std::string cmd = "validate " + domfile + " " + probfile + " solution"; */
+  /* system(cmd.c_str());                                                    */
 }

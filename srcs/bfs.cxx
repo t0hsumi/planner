@@ -10,12 +10,12 @@ std::vector<std::string> bfs(const Task &task, bool use_trie) {
   Trie trie;
 
   if (use_trie) {
-    std::cout << "trie init begin" << std::endl;
+    /* std::cout << "trie init begin" << std::endl; */
     trie.initialize(task);
-    std::cout << "trie init end" << std::endl;
+    /* std::cout << "trie init end" << std::endl; */
   }
 
-  std::cout << "Search start: " << task.name << std::endl;
+  /* std::cout << "Search start: " << task.name << std::endl; */
   queue.push(make_root_node(task.init));
   addrs.push_back(queue.front());
 
@@ -26,13 +26,14 @@ std::vector<std::string> bfs(const Task &task, bool use_trie) {
     auto node = queue.front();
     queue.pop();
     if (task.goal_reached(node->state)) {
-      std::cout << "Goal reached. Start extraction of solution." << std::endl;
-      std::cout << "Search end: " << task.name << std::endl;
+      /* std::cout << "Goal reached. Start extraction of solution." <<
+       * std::endl; */
+      /* std::cout << "Search end: " << task.name << std::endl; */
       auto ret = node->extract_solution();
       for (auto addr : addrs) {
         delete addr;
       }
-      std::cout << niteration << " nodes expanded" << std::endl;
+      /* std::cout << niteration << " nodes expanded" << std::endl; */
       return ret;
     }
 

@@ -33,9 +33,9 @@ std::vector<std::string> astar(const Task &task, bool use_trie) {
   Trie trie;
 
   if (use_trie) {
-    std::cout << "trie init begin" << std::endl;
+    /* std::cout << "trie init begin" << std::endl; */
     trie.initialize(task);
-    std::cout << "trie init end" << std::endl;
+    /* std::cout << "trie init end" << std::endl; */
   }
 
   state_cost[task.init] = 0;
@@ -43,12 +43,12 @@ std::vector<std::string> astar(const Task &task, bool use_trie) {
 
   auto root = make_root_node(task.init);
   auto init_h = heuristic(*root);
-  std::cout << "Initial h value: " << init_h << std::endl;
+  /* std::cout << "Initial h value: " << init_h << std::endl; */
 
   addrs.push_back(root);
   open.push(make_open_entry(root, init_h, node_tiebreaker));
 
-  std::cout << "Search start: " << task.name << std::endl;
+  /* std::cout << "Search start: " << task.name << std::endl; */
 
   int niteration = 0;
 
@@ -66,13 +66,14 @@ std::vector<std::string> astar(const Task &task, bool use_trie) {
     if (is_lowest_cost) {
       ++niteration;
       if (task.goal_reached(pop_state)) {
-        std::cout << "Goal reached. Start extraction of solution." << std::endl;
-        std::cout << "Search end: " << task.name << std::endl;
+        /* std::cout << "Goal reached. Start extraction of solution." <<
+         * std::endl; */
+        /* std::cout << "Search end: " << task.name << std::endl; */
         auto ret = pop_node->extract_solution();
         for (auto addr : addrs) {
           delete addr;
         }
-        std::cout << niteration << " nodes expanded" << std::endl;
+        /* std::cout << niteration << " nodes expanded" << std::endl; */
         return ret;
       }
 
@@ -108,8 +109,8 @@ std::vector<std::string> astar(const Task &task, bool use_trie) {
   for (auto addr : addrs) {
     delete addr;
   }
-  std::cout << "No solution found" << std::endl;
-  std::cout << "Search end: " << task.name << std::endl;
-  std::cout << niteration << " nodes expanded" << std::endl;
+  /* std::cout << "No solution found" << std::endl;             */
+  /* std::cout << "Search end: " << task.name << std::endl;     */
+  /* std::cout << niteration << " nodes expanded" << std::endl; */
   return std::vector<std::string>();
 }
