@@ -11,9 +11,17 @@ static std::string extract_path(const std::string &probfile) {
   std::string ret;
   std::smatch m;
 
+  const char *envvar = "DOWNWARD_PREPROCESSES";
+  const char *val = std::getenv(envvar);
+  if (val == nullptr) {
+    std::cerr << "Environmental value " << envvar << " not exists" << std::endl;
+    std::exit(1);
+  }
+  std::string path(val);
+
   std::regex_match(probfile, m,
                    std::regex(R"(.+\/benchmarks\/([^/]+/[^/]+)\.pddl)"));
-  ret = "/mnt/c/Users/ohsum/programing/ut/lab/planner/preprocess/" + m[1].str();
+  ret = path + m[1].str();
   return ret;
 }
 
