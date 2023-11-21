@@ -1,80 +1,49 @@
 #include <chrono>
 #include <cxxopts.hpp>
 
-#include "astar.hpp"
-#include "bfs.hpp"
-#include "bmrw.hpp"
-#include "lispiterator.hpp"
-#include "mrw.hpp"
-#include "nestedlist.hpp"
-#include "parser.hpp"
 #include "planner.hpp"
+#include "preprocess.hpp"
 #include "thread_bmrw.hpp"
 #include "utils.hpp"
 
 int main(int argc, char **argv) {
   std::string domfile;
   std::string probfile;
-  bool use_trie;
-  auto search = thread_bmrw;
+  size_t batch_size;
 
+  // argparse
   cxxopts::Options options("cmd parser");
   try {
     options.add_options()("domfile", "Domain File",
                           cxxopts::value<std::string>(domfile))(
         "probfile", "Problem File", cxxopts::value<std::string>(probfile))(
-        "t,trie", "Using Trie for successor generation",
-        cxxopts::value<bool>(use_trie)->default_value("false"))(
-        "a,astar", "Using astar search, not bfs",
-        cxxopts::value<bool>()->default_value("false"))(
-        "m,mrw", "Using MonteCarloRandomWalk",
-        cxxopts::value<bool>()->default_value("false"))(
-        "b,bmrw", "Using Batch MonteCarloRandomWalk",
-        cxxopts::value<bool>()->default_value("false"));
+        "n,nthreads", "Number of threads",
+        cxxopts::value<size_t>()->default_value("2"));
     options.parse_positional({"domfile", "probfile"});
 
     auto result = options.parse(argc, argv);
-    /* if (result["astar"].as<bool>()) {       */
-    /*   search = astar;                       */
-    /* } else if (result["mrw"].as<bool>()) {  */
-    /*   search = mrw;                         */
-    /* } else if (result["bmrw"].as<bool>()) { */
-    /*   search = bmrw;                        */
-    /* }                                       */
+    batch_size = result["nthreads"].as<size_t>();
   } catch (cxxopts::exceptions::exception &e) {
     std::cerr << options.help() << std::endl;
     std::cerr << e.what() << std::endl;
     exit(1);
   }
 
+  // generate task from pddl
+  Task task = preprocess(domfile, probfile, batch_size);
+
   auto start = std::chrono::system_clock::now();
-
-  // parse domain file
-  auto DomTokens = generate_token(domfile);
-  auto Domlst = generate_nestedlist(DomTokens);
-  LispIterator DomIter(Domlst);
-  auto dom = parse_domain(DomIter);
-
-  // parse problem file
-  auto ProbTokens = generate_token(probfile);
-  auto Problst = generate_nestedlist(ProbTokens);
-  LispIterator ProbIter(Problst);
-  auto prob = parse_problem(ProbIter);
-
-  auto parse_end = std::chrono::system_clock::now();
 
   /* std::cout << dom.preconditions.size() << " Predicates parsed" << std::endl;
    */
   /* std::cout << dom.actions.size() << " Actions parsed" << std::endl; */
   /* std::cout << prob.objs.size() << " Objects parsed" << std::endl; */
 
-  // combine domain def and prob def
-  auto task = generate_task(dom, prob);
-
   /* std::cout << task.init.size() << " Facts created" << std::endl;          */
   /* std::cout << task.operators.size() << " Operators created" << std::endl; */
 
-  auto solution = search(task, true);
+  // search
+  auto solution = thread_bmrw(task, true, batch_size);
 
   auto end = std::chrono::system_clock::now();
 

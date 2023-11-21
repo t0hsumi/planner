@@ -3,10 +3,10 @@
 #include <unordered_set>
 
 #include "astar.hpp"
-#include "bmrw.hpp"
 #include "planner.hpp"
 #include "thread_bmrw.hpp"
 #include "trie.hpp"
+
 static std::tuple<size_t, size_t, SearchNode *>
 make_open_entry(SearchNode *node, size_t h, size_t node_tiebreaker) {
   return std::make_tuple(h, node_tiebreaker, node);
@@ -77,9 +77,9 @@ void fillBatch(
     std::priority_queue<std::tuple<size_t, size_t, SearchNode *>,
                         std::vector<std::tuple<size_t, size_t, SearchNode *>>,
                         TupleCmp> &openlist,
-    std::vector<SearchNode *> &batch) {
+    std::vector<SearchNode *> &batch, const int &batch_size) {
   size_t offset = 0;
-  for (int i = 0; i < BATCH_SIZE; ++i) {
+  for (int i = 0; i < batch_size; ++i) {
     if (openlist.empty()) {
       if (offset == 0)
         offset = i;
@@ -92,17 +92,18 @@ void fillBatch(
   }
 }
 
-std::vector<std::string> thread_bmrw(const Task &task, bool use_trie) {
+std::vector<std::string> thread_bmrw(const Task &task, bool use_trie,
+                                     int batch_size) {
   std::priority_queue<std::tuple<size_t, size_t, SearchNode *>,
                       std::vector<std::tuple<size_t, size_t, SearchNode *>>,
                       TupleCmp>
       openlist;
   std::unordered_set<std::vector<bool>> closedlist;
-  std::vector<SearchNode *> batch(BATCH_SIZE);
-  std::vector<SearchNode *> walkers(BATCH_SIZE);
+  std::vector<SearchNode *> batch(batch_size);
+  std::vector<SearchNode *> walkers(batch_size);
 
-  std::vector<hFFHeuristic> heuristics(BATCH_SIZE);
-  for (int i = 0; i < BATCH_SIZE; ++i) {
+  std::vector<hFFHeuristic> heuristics(batch_size);
+  for (int i = 0; i < batch_size; ++i) {
     heuristics[i].initialize(task);
   }
   std::vector<SearchNode *> addrs;
@@ -110,9 +111,7 @@ std::vector<std::string> thread_bmrw(const Task &task, bool use_trie) {
   size_t node_tiebreaker = 0;
 
   if (use_trie) {
-    std::cout << "trie init begin" << std::endl;
-    trie.initialize(task);
-    std::cout << "trie init end" << std::endl;
+    trie.initialize(task, batch_size);
   }
 
   auto root = make_root_node(task.init);
@@ -120,8 +119,6 @@ std::vector<std::string> thread_bmrw(const Task &task, bool use_trie) {
 
   /* addrs.push_back(root); */
   openlist.push(make_open_entry(root, h_min, node_tiebreaker));
-
-  std::cout << "Search start: " << task.name << std::endl;
 
   while (true) {
     if (openlist.empty()) {
@@ -141,10 +138,10 @@ std::vector<std::string> thread_bmrw(const Task &task, bool use_trie) {
         openlist.push(make_open_entry(succ_node, h, node_tiebreaker));
       }
     }
-    fillBatch(openlist, batch);
+    fillBatch(openlist, batch, batch_size);
 
     std::vector<std::thread> threads;
-    for (int i = 0; i < BATCH_SIZE; ++i) {
+    for (int i = 0; i < batch_size; ++i) {
       threads.push_back(std::thread(MonteCarloRandomWalk, std::ref(batch),
                                     std::ref(walkers), std::ref(task),
                                     std::ref(trie), std::ref(use_trie),
@@ -160,10 +157,8 @@ std::vector<std::string> thread_bmrw(const Task &task, bool use_trie) {
     /*                        addrs, i); */
     /* } */
 
-    for (int i = 0; i < BATCH_SIZE; ++i) {
+    for (int i = 0; i < batch_size; ++i) {
       if (task.goal_reached(walkers[i]->state)) {
-        std::cout << "Goal reached. Start extraction of solution." << std::endl;
-        std::cout << "Search end: " << task.name << std::endl;
         auto ret = walkers[i]->extract_solution();
         return ret;
       }

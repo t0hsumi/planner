@@ -11,8 +11,6 @@
 
 #include "parser.hpp"
 
-#define BATCH_SIZE 8
-
 // clause version of operator
 class Operator {
 public:
@@ -85,13 +83,14 @@ public:
 class Task {
 public:
   Task(std::string name, std::vector<bool> init, std::multiset<size_t> goal,
-       std::vector<VecOperator> operators)
-      : name(name), init(init), goal(goal), operators(operators) {}
+       std::vector<VecOperator> operators, int batch_size)
+      : name(name), init(init), goal(goal), operators(operators), batch_size(batch_size) {}
 
   std::string name;
   std::vector<bool> init;
   std::multiset<size_t> goal;
   std::vector<VecOperator> operators;
+  int batch_size;
 
   bool goal_reached(const std::vector<bool> &state) const {
     for (auto f : goal) {
@@ -104,7 +103,7 @@ public:
   std::vector<std::pair<VecOperator, std::vector<bool>>>
   get_successor_states(std::vector<bool> state, size_t id) const {
     std::vector<std::vector<std::pair<VecOperator, std::vector<bool>>>> ret(
-        BATCH_SIZE);
+        batch_size);
 
     for (auto op : operators) {
       if (op.applicable(state))
@@ -115,7 +114,7 @@ public:
   }
 };
 
-Task generate_task(const DomainDef &dom, const ProblemDef &prob);
+Task generate_task(const DomainDef &dom, const ProblemDef &prob, int batch_size);
 
 class SearchNode {
 public:

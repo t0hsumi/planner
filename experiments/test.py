@@ -32,7 +32,7 @@ BENCHMARKS_DIR = os.environ["DOWNWARD_BENCHMARKS"]
 if REMOTE:
     ENV = BaselSlurmEnvironment(email="my.name@unibas.ch")
 else:
-    ENV = LocalEnvironment(processes=2)
+    ENV = LocalEnvironment(processes=8)
 SUITE = ["grid", "gripper:prob01.pddl",
          "miconic:s1-0.pddl", "mystery:prob07.pddl"]
 ATTRIBUTES = [
@@ -41,42 +41,42 @@ ATTRIBUTES = [
     "times",
     Attribute("coverage", absolute=True, min_wins=False, scale="linear"),
 ]
-TIME_LIMIT = 1800
+TIME_LIMIT = 100
 MEMORY_LIMIT = 2048
 
 
 # Create a new experiment.
 exp = Experiment(environment=ENV)
-# Add custom parser for FF.
 exp.add_parser(TestParser())
 
-for task in suites.build_suite(BENCHMARKS_DIR, SUITE):
-    run = exp.add_run()
-    # Create symbolic links and aliases. This is optional. We
-    # could also use absolute paths in add_command().
-    run.add_resource("domain", task.domain_file, symlink=True)
-    run.add_resource("problem", task.problem_file, symlink=True)
-    # 'ff' binary has to be on the PATH.
-    # We could also use exp.add_resource().
-    run.add_command(
-        "run-planner",
-        ["ff", "-o", "{domain}", "-f", "{problem}"],
-        time_limit=TIME_LIMIT,
-        memory_limit=MEMORY_LIMIT,
-    )
-    # AbsoluteReport needs the following properties:
-    # 'domain', 'problem', 'algorithm', 'coverage'.
-    run.set_property("domain", task.domain)
-    run.set_property("problem", task.problem)
-    run.set_property("algorithm", "ff")
-    # BaseReport needs the following properties:
-    # 'time_limit', 'memory_limit'.
-    run.set_property("time_limit", TIME_LIMIT)
-    run.set_property("memory_limit", MEMORY_LIMIT)
-    # Every run has to have a unique id in the form of a list.
-    # The algorithm name is only really needed when there are
-    # multiple algorithms.
-    run.set_property("id", ["ff", task.domain, task.problem])
+for i in range(1, 9):
+    for task in suites.build_suite(BENCHMARKS_DIR, SUITE):
+        run = exp.add_run()
+        # Create symbolic links and aliases. This is optional. We
+        # could also use absolute paths in add_command().
+        run.add_resource("domain", task.domain_file, symlink=True)
+        run.add_resource("problem", task.problem_file, symlink=True)
+
+        # We could also use exp.add_resource().
+        run.add_command(
+            "run-planner",
+            ["planner", "{domain}", "{problem}"],
+            time_limit=TIME_LIMIT,
+            memory_limit=MEMORY_LIMIT,
+        )
+        # AbsoluteReport needs the following properties:
+        # 'domain', 'problem', 'algorithm', 'coverage'.
+        run.set_property("domain", task.domain)
+        run.set_property("problem", task.problem)
+        run.set_property("algorithm", "batch mrw" + str(i))
+        # BaseReport needs the following properties:
+        # 'time_limit', 'memory_limit'.
+        run.set_property("time_limit", TIME_LIMIT)
+        run.set_property("memory_limit", MEMORY_LIMIT)
+        # Every run has to have a unique id in the form of a list.
+        # The algorithm name is only really needed when there are
+        # multiple algorithms.
+        run.set_property("id", [str(i), task.domain, task.problem])
 
 # Add step that writes experiment files to disk.
 exp.add_step("build", exp.build)

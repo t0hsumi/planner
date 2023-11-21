@@ -426,7 +426,8 @@ get_vecOperators(const std::vector<Operator> &operators,
   return ret;
 }
 
-Task generate_task(const DomainDef &dom, const ProblemDef &prob) {
+Task generate_task(const DomainDef &dom, const ProblemDef &prob,
+                   int batch_size) {
   assert(dom.name == prob.domname);
 
   auto typemap = get_typemap(dom.types, prob.objs);
@@ -443,7 +444,7 @@ Task generate_task(const DomainDef &dom, const ProblemDef &prob) {
   auto goal_vec = pred2vector(goal, fact2num);
   auto vec_ops = get_vecOperators(operators, fact2num);
 
-  return Task(prob.probname, init_vec, goal_vec, vec_ops);
+  return Task(prob.probname, init_vec, goal_vec, vec_ops, batch_size);
 }
 
 SearchNode *make_root_node(std::vector<bool> initial_state) {

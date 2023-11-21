@@ -42,9 +42,9 @@ std::vector<std::string> generate_token(const std::string &filename) {
     // remove comments
     size_t colon = tmp.find(';');
     if (colon == std::string::npos)
-      in += tmp;
+      in += tmp + " ";
     else
-      in += tmp.substr(0, colon);
+      in += tmp.substr(0, colon) + " ";
   }
   fstream.close();
   in = addSpace(in);

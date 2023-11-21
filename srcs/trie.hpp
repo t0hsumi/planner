@@ -6,7 +6,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "bmrw.hpp"
 #include "planner.hpp"
 #include "thread_bmrw.hpp"
 
@@ -26,7 +25,8 @@ public:
   Trie() { root = new TrieNode(); }
   ~Trie() { delete root; }
 
-  void initialize(const Task &task) {
+  void initialize(const Task &task, const int &nthreads) {
+    batch_size = nthreads;
     for (auto op : task.operators) {
       TrieNode *curr = root;
 
@@ -43,8 +43,8 @@ public:
   std::vector<std::pair<VecOperator, std::vector<bool>>>
   get_successor_states(const std::vector<bool> &state, size_t id) const {
     std::vector<std::vector<std::pair<VecOperator, std::vector<bool>>>> ret(
-        BATCH_SIZE);
-    std::vector<std::vector<TrieNode *>> reachable_nodes(BATCH_SIZE);
+        batch_size);
+    std::vector<std::vector<TrieNode *>> reachable_nodes(batch_size);
     std::vector<VecOperator> applicables;
 
     reachable_nodes[id].push_back(root);
@@ -53,7 +53,7 @@ public:
       if (!state[i])
         continue;
       std::vector<TrieNode *> add_nodes;
-      for (size_t j = 0; j < BATCH_SIZE; ++j) {
+      for (size_t j = 0; j < batch_size; ++j) {
         for (auto reachable_node : reachable_nodes[j]) {
           if (reachable_node->children.find(i) !=
               reachable_node->children.end())
@@ -75,6 +75,7 @@ public:
 
 private:
   TrieNode *root;
+  int batch_size;
 };
 
 #endif
