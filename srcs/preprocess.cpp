@@ -1,4 +1,5 @@
 #include <cerrno>
+#include <cstddef>
 #include <fstream>
 #include <iostream>
 
@@ -37,6 +38,7 @@ static void write_task(const Task &task, const std::string &path) {
     }
     fstream << std::endl;
     // goal state
+    fstream << task.goal.size() << std::endl;
     for (const auto &elem : task.goal) {
       fstream << elem << " ";
     }
@@ -74,27 +76,110 @@ static void write_task(const Task &task, const std::string &path) {
   }
 }
 
+static Task fetch_task(const std::string &path) {
+  std::ifstream fstream(path);
+
+  if (fstream.is_open()) {
+    // name
+    std::string name;
+    fstream >> name;
+    // batch size
+    size_t batch_size;
+    fstream >> batch_size;
+    // number of propositions
+    size_t nprops;
+    fstream >> nprops;
+    // initial state
+    std::vector<bool> init(nprops);
+    for (size_t i = 0; i < nprops; ++i) {
+      int tmp;
+      fstream >> tmp;
+      init[i] = (tmp == 1);
+    }
+    // goal
+    std::multiset<size_t> goal;
+    size_t goal_size;
+    fstream >> goal_size;
+    for (size_t i = 0; i < goal_size; ++i) {
+      size_t tmp;
+      fstream >> tmp;
+      goal.insert(tmp);
+    }
+    // number of operators
+    size_t nops;
+    fstream >> nops;
+    // operators
+    std::vector<VecOperator> operators(nops);
+    for (size_t i = 0; i < nops; ++i) {
+      // operation name
+      std::string op_name;
+      std::string tmp;
+      while (true) {
+        fstream >> tmp;
+        if (!tmp.empty() && tmp.back() == ')') {
+          op_name += tmp;
+          break;
+        } else {
+          op_name += tmp + " ";
+        }
+      }
+      // precond
+      size_t npreconds;
+      fstream >> npreconds;
+      std::vector<size_t> precond(npreconds);
+      for (size_t j = 0; j < npreconds; ++j) {
+        fstream >> precond[j];
+      }
+      // add
+      size_t nadds;
+      fstream >> nadds;
+      std::vector<size_t> add_eff(nadds);
+      for (size_t j = 0; j < nadds; ++j) {
+        fstream >> add_eff[j];
+      }
+      // del
+      size_t ndels;
+      fstream >> ndels;
+      std::vector<size_t> del_eff(ndels);
+      for (size_t j = 0; j < ndels; ++j) {
+        fstream >> del_eff[j];
+      }
+      operators[i] = VecOperator(op_name, precond, add_eff, del_eff);
+    }
+
+    fstream.close();
+
+    return Task(name, init, goal, operators, batch_size);
+  } else {
+    std::cerr << "can't open file: " << path << std::endl;
+    std::cerr << strerror(errno) << std::endl;
+    std::exit(1);
+  }
+}
+
 Task preprocess(const std::string &domfile, const std::string &probfile,
                 const size_t &batch_size) {
   std::string task_path = extract_path(probfile);
-  /* if (std::filesystem::exists(task_path)) {  */
-  /*   std::cout << "file exists" << std::endl; */
-  /* }                                          */
-  // parse domain file
-  auto DomTokens = generate_token(domfile);
-  auto Domlst = generate_nestedlist(DomTokens);
-  LispIterator DomIter(Domlst);
-  auto dom = parse_domain(DomIter);
+  if (std::filesystem::exists(task_path)) {
+    Task task = fetch_task(task_path);
+    return task;
+  } else {
+    // parse domain file
+    auto DomTokens = generate_token(domfile);
+    auto Domlst = generate_nestedlist(DomTokens);
+    LispIterator DomIter(Domlst);
+    auto dom = parse_domain(DomIter);
 
-  // parse problem file
-  auto ProbTokens = generate_token(probfile);
-  auto Problst = generate_nestedlist(ProbTokens);
-  LispIterator ProbIter(Problst);
-  auto prob = parse_problem(ProbIter);
+    // parse problem file
+    auto ProbTokens = generate_token(probfile);
+    auto Problst = generate_nestedlist(ProbTokens);
+    LispIterator ProbIter(Problst);
+    auto prob = parse_problem(ProbIter);
 
-  Task task = generate_task(dom, prob, batch_size);
+    // generate task
+    Task task = generate_task(dom, prob, batch_size);
 
-  write_task(task, task_path);
-
-  return task;
+    write_task(task, task_path);
+    return task;
+  }
 }
