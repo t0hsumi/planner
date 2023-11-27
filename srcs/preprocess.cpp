@@ -9,8 +9,8 @@
 
 static std::string extract_path(const std::string &probfile) {
   std::string ret;
-  std::smatch m;
 
+  // fetch preprocess result path from environmental variable
   const char *envvar = "DOWNWARD_PREPROCESSES";
   const char *val = std::getenv(envvar);
   if (val == nullptr) {
@@ -19,20 +19,29 @@ static std::string extract_path(const std::string &probfile) {
   }
   std::string path(val);
 
-  std::regex_match(probfile, m,
-                   std::regex(R"(.+\/benchmarks\/([^/]+/[^/]+)\.pddl)"));
-  ret = path + m[1].str();
-  return ret;
+  // get problem and domain name
+  auto ProbTokens = generate_token(probfile);
+  std::string domname = ProbTokens[8];
+
+  size_t sep_idx = probfile.find_last_of("/");
+  std::string filename_with_ext =
+      (sep_idx != std::string::npos) ? probfile.substr(sep_idx + 1) : probfile;
+  size_t extension_idx = filename_with_ext.find_last_of(".");
+  std::string probname = filename_with_ext.substr(0, extension_idx);
+
+  // $DOWNWARD_PREPROCESSED/domain_name/problem_name
+  return path + domname + "/" + probname;
 }
 
 static void write_task(const Task &task, const std::string &path) {
-  std::ofstream fstream(path);
+  std::ofstream fstream;
 
   std::filesystem::path directory = std::filesystem::path(path).parent_path();
   if (!std::filesystem::exists(directory)) {
     std::filesystem::create_directories(directory);
   }
 
+  fstream.open(path, std::ios::out);
   if (fstream.is_open()) {
     // name
     fstream << task.name << std::endl;
@@ -78,7 +87,7 @@ static void write_task(const Task &task, const std::string &path) {
     }
     fstream.close();
   } else {
-    std::cerr << "can't open file: " << path << std::endl;
+    std::cerr << "write_task: can't open file: " << path << std::endl;
     std::cerr << strerror(errno) << std::endl;
     std::exit(1);
   }
@@ -159,7 +168,7 @@ static Task fetch_task(const std::string &path) {
 
     return Task(name, init, goal, operators, batch_size);
   } else {
-    std::cerr << "can't open file: " << path << std::endl;
+    std::cerr << "fetch_task: can't open file: " << path << std::endl;
     std::cerr << strerror(errno) << std::endl;
     std::exit(1);
   }
