@@ -150,6 +150,10 @@ static void _parse_formula(LispIterator &iter, Formula &f) {
     auto childformula = iter.peek();
     auto cond = parse_cond(childformula);
     f.neg.push_back(cond);
+  } else if (key == "increase") {
+    while (!iter.empty()) {
+      iter.next();
+    }
   } else {
     Cond c;
     c.key = key;
@@ -212,7 +216,7 @@ static std::vector<Fact> parse_predicate_instance_list(LispIterator &iter) {
     auto it = iter.peek();
 
     pred.name = parse_name(it);
-    while (!it.empty()) {
+    while (!it.empty() && pred.name != "=") {
       pred.name = pred.name + " " + it.get_word();
       it.next();
     }
@@ -296,6 +300,8 @@ DomainDef parse_domain(LispIterator &iter) {
 
     } else if (key == "action") {
       dom.actions.push_back(parse_action_stmt(it));
+    } else if (key == "functions") {
+      ;
     } else {
       std::cerr << "unknown keyword detected: " << key << std::endl;
       exit(1);
@@ -347,6 +353,6 @@ ProblemDef parse_problem(LispIterator &iter) {
   ret.goal = parse_goal_stmt(it);
   iter.next();
 
-  iter.match_end();
+  /* iter.match_end(); */
   return ret;
 }

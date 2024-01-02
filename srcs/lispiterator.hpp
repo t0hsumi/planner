@@ -12,6 +12,10 @@ public:
   bool is_structure() const { return !contents[position].isword(); }
   bool empty() const { return position == contents.size(); }
   std::string get_word() const {
+    if (is_structure()) {
+      auto lst = contents[position].getList();
+      std::cout << lst[0].getword() << std::endl;
+    }
     _raise_if(is_structure(), "not a word in LispIterator.get_word()");
     return contents[position].getword();
   }

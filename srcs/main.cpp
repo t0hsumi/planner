@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
                           cxxopts::value<std::string>(domfile))(
         "probfile", "Problem File", cxxopts::value<std::string>(probfile))(
         "n,nthreads", "Number of threads",
-        cxxopts::value<size_t>()->default_value("2"));
+        cxxopts::value<size_t>()->default_value("1"));
     options.parse_positional({"domfile", "probfile"});
 
     auto result = options.parse(argc, argv);
