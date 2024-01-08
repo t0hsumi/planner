@@ -13,6 +13,6 @@
 
 std::vector<std::string> generate_token(const std::string &filename);
 void write_solution(const std::vector<std::string> &solution,
-                    const double &elapsed);
+                    const double &elapsed, const size_t &nodes_sum);
 
 #endif

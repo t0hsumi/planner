@@ -52,7 +52,7 @@ std::vector<std::string> generate_token(const std::string &filename) {
 }
 
 void write_solution(const std::vector<std::string> &solution,
-                    const double &elapsed) {
+                    const double &elapsed, const size_t &nodes_sum) {
   size_t steps_cnt = 0;
   /* std::ofstream ofile;                   */
   /* ofile.open("solution", std::ios::out); */
@@ -68,4 +68,5 @@ void write_solution(const std::vector<std::string> &solution,
   std::cout << std::endl;
   std::cout << "Plan length: " << solution.size() << std::endl;
   std::cout << "Search time: " << elapsed << " msec" << std::endl;
+  std::cout << "Number of Nodes expanded: " << nodes_sum << std::endl;
 }

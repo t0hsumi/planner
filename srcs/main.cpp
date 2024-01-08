@@ -31,6 +31,11 @@ int main(int argc, char **argv) {
 
   // generate task from pddl
   Task task = preprocess(domfile, probfile, batch_size);
+  /* std::vector<size_t> nnodes(batch_size, 0); */
+  size_t nnodes[batch_size];
+  for (size_t i = 0; i < batch_size; ++i) {
+    nnodes[i] = 0;
+  }
 
   auto start = std::chrono::system_clock::now();
 
@@ -43,9 +48,14 @@ int main(int argc, char **argv) {
   /* std::cout << task.operators.size() << " Operators created" << std::endl; */
 
   // search
-  auto solution = thread_bmrw(task, true, batch_size);
+  auto solution = thread_bmrw(task, true, batch_size, nnodes);
 
   auto end = std::chrono::system_clock::now();
+
+  size_t nodes_sum = 0;
+  for (size_t i = 0; i < batch_size; ++i) {
+    nodes_sum += nnodes[i];
+  }
 
   auto elapsed = static_cast<double>(
       std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
@@ -54,7 +64,7 @@ int main(int argc, char **argv) {
     std::cout << "No solution found." << std::endl;
     return 1;
   } else
-    write_solution(solution, elapsed);
+    write_solution(solution, elapsed, nodes_sum);
 
   // check plan
   /* std::string cmd = "validate " + domfile + " " + probfile + " solution"; */

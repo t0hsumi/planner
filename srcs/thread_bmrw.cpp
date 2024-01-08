@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #include <random>
 #include <unordered_set>
@@ -27,7 +28,7 @@ static void MonteCarloRandomWalk(std::vector<SearchNode *> batch,
                                  const bool use_trie,
                                  std::vector<hFFHeuristic> &heuristics,
                                  std::vector<SearchNode *> &addrs,
-                                 int thread_id) {
+                                 int thread_id, size_t *nnodes) {
   std::random_device rd;
   std::mt19937_64 eng(rd());
   size_t min_value = 0;
@@ -38,34 +39,34 @@ static void MonteCarloRandomWalk(std::vector<SearchNode *> batch,
   size_t h_min = 1e18;
   SearchNode *node_min = nullptr;
 
-  for (int i = 0; i < NUM_WALK; ++i) {
-    auto node = current_node;
-    for (size_t j = 0; j < LENGTH_WALK; j++) {
-      std::vector<std::pair<VecOperator, std::vector<bool>>> successors;
-      if (use_trie) {
-        successors = trie.get_successor_states(node->state, thread_id);
-      } else
-        successors = task.get_successor_states(node->state, thread_id);
-      if (successors.empty())
-        break;
-      auto selected_succ = successors[dist(eng) % successors.size()];
-      auto op = selected_succ.first;
-      auto succ_state = selected_succ.second;
-      node = make_child_node(node, op.name, succ_state);
+  auto node = current_node;
+  for (size_t j = 0; j < LENGTH_WALK; j++) {
+    std::vector<std::pair<VecOperator, std::vector<bool>>> successors;
+    nnodes[thread_id]++;
+    if (use_trie) {
+      successors = trie.get_successor_states(node->state, thread_id);
+    } else
+      successors = task.get_successor_states(node->state, thread_id);
+    if (successors.empty())
+      break;
+    auto selected_succ = successors[dist(eng) % successors.size()];
+    auto op = selected_succ.first;
+    auto succ_state = selected_succ.second;
+    node = make_child_node(node, op.name, succ_state);
 
-      // TODO
-      /* addrs.push_back(node); */
+    // TODO
+    /* addrs.push_back(node); */
 
-      if (task.goal_reached(node->state)) {
-        walkers[thread_id] = node;
-        return;
-      }
+    if (task.goal_reached(node->state)) {
+      walkers[thread_id] = node;
+      return;
     }
     if (heuristics[thread_id](node->state) < h_min) {
       node_min = node;
       h_min = heuristics[thread_id](node->state);
     }
   }
+
   if (node_min) {
     walkers[thread_id] = node_min;
   } else {
@@ -93,7 +94,7 @@ void fillBatch(
 }
 
 std::vector<std::string> thread_bmrw(const Task &task, bool use_trie,
-                                     int batch_size) {
+                                     int batch_size, size_t *nnodes) {
   std::priority_queue<std::tuple<size_t, size_t, SearchNode *>,
                       std::vector<std::tuple<size_t, size_t, SearchNode *>>,
                       TupleCmp>
@@ -142,10 +143,10 @@ std::vector<std::string> thread_bmrw(const Task &task, bool use_trie,
 
     std::vector<std::thread> threads;
     for (int i = 0; i < batch_size; ++i) {
-      threads.push_back(std::thread(MonteCarloRandomWalk, std::ref(batch),
-                                    std::ref(walkers), std::ref(task),
-                                    std::ref(trie), std::ref(use_trie),
-                                    std::ref(heuristics), std::ref(addrs), i));
+      threads.push_back(std::thread(
+          MonteCarloRandomWalk, std::ref(batch), std::ref(walkers),
+          std::ref(task), std::ref(trie), std::ref(use_trie),
+          std::ref(heuristics), std::ref(addrs), i, std::ref(nnodes)));
     }
     for (std::thread &t : threads) {
       t.join();
